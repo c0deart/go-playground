@@ -11,6 +11,17 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// A list of product defined in response
+// swagger:response productsResponse
+type productsResponseWrapper struct {
+	Body []data.Product
+}
+
+// swagger:parameters deleteProduct
+type productIDParamaterWrapper struct {
+	ID int `json: "id"`
+}
+
 type Products struct {
 	l *log.Logger
 }
@@ -19,10 +30,24 @@ func NewProducts(l *log.Logger) *Products {
 	return &Products{l}
 }
 
+// ErrInvalidProductPath is an error message when the product path is not valid
+var ErrInvalidProductPath = fmt.Errorf("Invalid Path, path should be /products/[id]")
+
+// GenericError is a generic error message returned by a server
+type GenericError struct {
+	Message string `json:"message"`
+}
+
 func (p *Products) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusMethodNotAllowed)
 }
 
+// swagger:route GET /products products listProducts
+// Return a list of products from the database
+// responses:
+//	200: productsResponse
+
+// ListAll handles GET requests and returns all current products
 func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
 	p.l.Println("Fetching prodcuts")
 
@@ -98,4 +123,22 @@ func (p Products) MiddlewareTypeValidation(next http.Handler) http.Handler {
 		// Call the next handler, which can be another middleware in the chain, or the final handler.
 		next.ServeHTTP(rw, r)
 	})
+}
+
+// getProductID returns the product ID from the URL
+// Panics if cannot convert the id into an integer
+// this should never happen as the router ensures that
+// this is a valid number
+func getProductID(r *http.Request) int {
+	// parse the product id from the url
+	vars := mux.Vars(r)
+
+	// convert the id into an integer and return
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		// should never happen
+		panic(err)
+	}
+
+	return id
 }

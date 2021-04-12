@@ -1,6 +1,9 @@
 package data
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestCheckValidation(t *testing.T) {
 	p := &Product{
@@ -15,5 +18,17 @@ func TestCheckValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestArrayRemoval(t *testing.T) {
+	productList := []string{"a", "b", "c"}
+	fmt.Println(productList)
+
+	removeIndex := 1
+	//updatedArr := productList[:removeIndex]
+	//fmt.Println(updatedArr)
+
+	productList = append(productList[:removeIndex], productList[removeIndex+1])
+	fmt.Println(productList)
 
 }
