@@ -19,9 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"regexp"
-
-	"github.com/go-playground/validator"
 )
 
 // Product defines the structure for an API product
@@ -61,6 +58,18 @@ type Product struct {
 // Products is a collection of Product
 type Products []*Product
 
+// GetProductByID returns a single product which matches the id from the
+// database.
+// If a product is not found this function returns a ProductNotFound error
+func GetProductByID(id int) (*Product, error) {
+	i := findIndexByProductID(id)
+	if id == -1 {
+		return nil, ErrProductNotFound
+	}
+
+	return productList[i], nil
+}
+
 // ToJSON serializes the contents of the collection to JSON
 // NewEncoder provides better performance than json.Unmarshal as it does not
 // have to buffer the output into an in memory slice of bytes
@@ -79,25 +88,6 @@ func (p *Product) FromJSON(r io.Reader) error {
 	return e.Decode(p)
 }
 
-func (p *Product) Validate() error {
-	validate := validator.New()
-	validate.RegisterValidation("sku", validateSKU)
-
-	return validate.Struct(p)
-}
-
-func validateSKU(fl validator.FieldLevel) bool {
-	// sku is of format abc-absd-dfsdf
-	re := regexp.MustCompile(`[a-z]+-[a-z]+-[a-z]+`)
-	matches := re.FindAllString(fl.Field().String(), -1)
-
-	if len(matches) != 1 {
-		return false
-	}
-
-	return true
-}
-
 // GetProducts returns a list of products
 func GetProducts() Products {
 	return productList
@@ -108,14 +98,18 @@ func AddProduct(p *Product) {
 	productList = append(productList, p)
 }
 
-func UpdateProduct(id int, p *Product) error {
-	_, pos, err := FindProduct(id)
-	if err != nil {
-		return err
+// UpdateProduct replaces a product in the database with the given
+// item.
+// If a product with the given id does not exist in the database
+// this function returns a ProductNotFound error
+func UpdateProduct(p Product) error {
+	i := findIndexByProductID(p.ID)
+	if i == -1 {
+		return ErrProductNotFound
 	}
 
-	p.ID = id
-	productList[pos] = p
+	// update the product in the DB
+	productList[i] = &p
 
 	return nil
 }

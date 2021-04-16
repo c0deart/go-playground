@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"c0deart/hello/product.api/data"
+	"github.com/c0deart/go-playground/product-api/data"
 )
 
 // swagger:route DELETE /products/{id} products deleteProduct

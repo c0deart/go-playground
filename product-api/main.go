@@ -1,7 +1,6 @@
 package main
 
 import (
-	"c0deart/hello/handlers"
 	"context"
 	"log"
 	"net/http"
@@ -10,71 +9,86 @@ import (
 	"time"
 
 	"github.com/go-openapi/runtime/middleware"
+
+	"github.com/c0deart/go-playground/product-api/data"
+	"github.com/c0deart/go-playground/product-api/handlers"
+	gohandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/nicholasjackson/env"
 )
 
+var bindAddress = env.String("BIND_ADDRESS", false, ":9090", "Bind address for the server")
+
 func main() {
-	l := log.New(os.Stdout, "product-api", log.LstdFlags)
-	hh := handlers.NewHello(l)
-	gh := handlers.NewGoodbye(l)
-	ph := handlers.NewProducts(l)
 
-	//serveMux := http.NewServeMux()
-	serveMux := mux.NewRouter()
-	serveMux.Handle("/hello", hh)
-	serveMux.Handle("/goodbye", gh)
+	env.Parse()
 
-	serveMux.Handle("/products", ph)
-	getRouter := serveMux.Methods("GET").Subrouter()
-	getRouter.HandleFunc("/", ph.GetProducts)
+	l := log.New(os.Stdout, "products-api ", log.LstdFlags)
+	v := data.NewValidation()
 
-	putRouter := serveMux.Methods(http.MethodPut).Subrouter()
-	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProducts)
-	putRouter.Use(ph.MiddlewareTypeValidation)
+	// create the handlers
+	ph := handlers.NewProducts(l, v)
 
-	postRouter := serveMux.Methods(http.MethodPost).Subrouter()
-	postRouter.HandleFunc("/", ph.AddProduct)
-	postRouter.Use(ph.MiddlewareTypeValidation)
+	// create a new serve mux and register the handlers
+	sm := mux.NewRouter()
 
-	deleteR := serveMux.Methods(http.MethodDelete).Subrouter()
+	// handlers for API
+	getR := sm.Methods(http.MethodGet).Subrouter()
+	getR.HandleFunc("/products", ph.ListAll)
+	getR.HandleFunc("/products/{id:[0-9]+}", ph.ListSingle)
+
+	putR := sm.Methods(http.MethodPut).Subrouter()
+	putR.HandleFunc("/products", ph.Update)
+	putR.Use(ph.MiddlewareValidateProduct)
+
+	//postR := sm.Methods(http.MethodPost).Subrouter()
+	//postR.HandleFunc("/products", ph.Create)
+	//postR.Use(ph.MiddlewareValidateProduct)
+
+	deleteR := sm.Methods(http.MethodDelete).Subrouter()
 	deleteR.HandleFunc("/products/{id:[0-9]+}", ph.Delete)
 
-	//docsRouter := serveMux.Methods(http.MethodGet).Subrouter()
-	opts := middleware.RedocOpts{SpecURL: "swagger.yaml"}
+	// handler for documentation
+	opts := middleware.RedocOpts{SpecURL: "/swagger.yaml"}
 	sh := middleware.Redoc(opts, nil)
-	getRouter.Handle("/docs", sh)
-	getRouter.Handle("/swagger.yaml", http.FileServer(http.Dir("./")))
 
-	// https://golang.org/pkg/net/http/#Server
-	server := http.Server{
-		Addr:         ":9090",
-		Handler:      serveMux,
-		IdleTimeout:  120 * time.Second,
-		ReadTimeout:  1 * time.Second,
-		WriteTimeout: 1 * time.Second,
+	getR.Handle("/docs", sh)
+	getR.Handle("/swagger.yaml", http.FileServer(http.Dir("./")))
+
+	// CORS
+	ch := gohandlers.CORS(gohandlers.AllowedOrigins([]string{"*"}))
+
+	// create a new server
+	s := http.Server{
+		Addr:         *bindAddress,      // configure the bind address
+		Handler:      ch(sm),            // set the default handler
+		ErrorLog:     l,                 // set the logger for the server
+		ReadTimeout:  5 * time.Second,   // max time to read request from the client
+		WriteTimeout: 10 * time.Second,  // max time to write response to the client
+		IdleTimeout:  120 * time.Second, // max time for connections using TCP Keep-Alive
 	}
 
-	l.Println("Listening and serve")
-
+	// start the server
 	go func() {
-		l.Println("Listening and serve in go routine")
-		err := server.ListenAndServe()
-		l.Println("Listening and serve after in go routine")
+		l.Println("Starting server on port 9090")
+
+		err := s.ListenAndServe()
 		if err != nil {
-			l.Fatal(err)
+			l.Printf("Error starting server: %s\n", err)
+			os.Exit(1)
 		}
 	}()
 
-	sigChan := make(chan os.Signal)
+	// trap sigterm or interupt and gracefully shutdown the server
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Kill)
 
-	signal.Notify(sigChan, os.Interrupt)
-	signal.Notify(sigChan, os.Kill)
+	// Block until a signal is received.
+	sig := <-c
+	log.Println("Got signal:", sig)
 
-	sig := <-sigChan
-
-	l.Println("Recieved terminate:", sig)
-
-	// gracefull shutdown
-	timeoutContext, _ := context.WithTimeout(context.Background(), 30*time.Second)
-	server.Shutdown(timeoutContext)
+	// gracefully shutdown the server, waiting max 30 seconds for current operations to complete
+	ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
+	s.Shutdown(ctx)
 }

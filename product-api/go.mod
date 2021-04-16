@@ -1,17 +1,15 @@
-module c0deart/hello
+module github.com/c0deart/go-playground/product-api
 
 go 1.15
 
 require (
-	github.com/go-openapi/analysis v0.20.1 // indirect
+	github.com/PacktPublishing/Building-Microservices-with-Go-Second-Edition/product-api v0.0.0-20210121084838-e26ef75d9e1b
 	github.com/go-openapi/runtime v0.19.27
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator v9.31.0+incompatible
-	github.com/go-swagger/go-swagger v0.27.0 // indirect
+	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.8.0
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/pelletier/go-toml v1.9.0 // indirect
-	github.com/stretchr/testify v1.7.0 // indirect
-	golang.org/x/net v0.0.0-20210410081132-afb366fc7cd1 // indirect
-	golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57 // indirect
+	github.com/nicholasjackson/building-microservices-youtube/product-api v0.0.0-20200918064506-0260dd0e3676
+	github.com/nicholasjackson/env v0.6.0
 )

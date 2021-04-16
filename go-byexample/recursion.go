@@ -1,9 +1,8 @@
-// https://gobyexample.com/recursion
-
 package main
 
 import "fmt"
 
+// https://gobyexample.com/recursion
 func DoFactorial(n int) int {
 	if n == 0 {
 		return 1
